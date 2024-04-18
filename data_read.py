@@ -33,34 +33,7 @@ def load_psm_table(file, column_data, sep):
     return table
 
 
-def get_prot_info(pept_seq, proteins, fdb, field='protein'):
-    """
-    Return the start and end of a peptide sequence within a protein, using a list of identified proteins
-    It needs a dictionary of protein ID keys to Bio.SeqRecord objects
-    :param pept_seq: Peptide sequence
-    :param proteins: List of strings or dicts. Strings are protein IDs, if dicts they contain protein ID in field
-    :param fdb: Dictionary of Bio.SeqRecords as returned by SeqIO.to_dict
-    :param field: f proteins is list of dicts, name of field that contains the ID
-    :return: protein id, start and end (0-based)
-    """
 
-    # See if peptide matches to any LACB
-    prot_id = proteins[0][field] if field != '' else proteins[0]
-    # for p in proteins:
-    #     p = p[field] if field != '' else p
-    #     if p in bovin_lacb:
-    #         prot_id = p
-    #         break
-    #     if p in other_lacb:
-    #         prot_id = p
-    # Get protein sequence using prot_id and get peptide start and end
-    seq_rec = fdb.get(prot_id, None)
-    if seq_rec is None:
-        return '', -1, -1
-    prot_seq = seq_rec.seq
-    pstart = prot_seq.find(pept_seq)
-    pend = pstart + len(pept_seq) - 1
-    return prot_id, pstart, pend
 
 
 def get_rt(scan_ns, mzml_spectra):
@@ -85,35 +58,99 @@ class PepXMLdataExtractor:
     the pepxml map method to extractdata from PSMs.
     It works with Mascot and FragPipe pepxml flavours
     """
-    def __init__(self, flavour, decoy_tag='rev_'):
-        self.empty_pept_seq = ''
-        self.empty_prot_id = ''
-        self.empty_pstart = -1
-        self.empty_pend = -1
-        self.empty_isdecoy = None
-        self.empty_delta_mass = np.nan
-        self.empty_calc_mass = np.nan
-        self.empty_qval_key = np.nan
-        self.empty_scan_no = -1
-        self.empty_rt = np.nan
+    def __init__(self, flavour, pepxml_data, fdb, decoy_tag='rev_'):
         self.decoy_tag = decoy_tag
+        self.fdb = fdb
         if flavour == 'mascot':
             self.qval_key_f = self.mascot_expectation
             self.scan_no_f = self.mascot_scan_no
             self.rt_f = self.mascot_rt
             self.qval_key = 'expectation'
+            self.score = 'ionscore'
         elif flavour == 'fragpipe':
             self.qval_key_f = self.fragpipe_probability
             self.scan_no_f = self.fragpipe_scan_no
             self.rt_f = self.fragpipe_rt
             self.qval_key = 'probability'
+            self.score = 'hyperscore'
 
-    def empty_sample(self):
-        psm_data = [self.empty_scan_no, self.empty_rt, self.empty_pept_seq,
-                    self.empty_prot_id, self.empty_pstart, self.empty_pend,
-                    self.empty_isdecoy,  self.empty_calc_mass, self.empty_delta_mass,
-                    self.empty_qval_key]
-        return psm_data
+        self.pepxml_functions = {
+            'Scan_No': [self.scan_no_f],
+            'RTsec': [self.rt_f],
+            'Seq': [self.get_seq],
+            'calc_mass': [self.get_calc_mass],
+            'delta_mass': [self.get_delta_mass],
+            'delta_mass_mods_pos': [self.get_delta_mass_mods_pos, 'Seq'],
+            'delta_mass_mods_weights': [lambda x: x[1], 'delta_mass_mods_pos'],
+            'hyperscore': [self.get_score],
+            'is_decoy': [lambda x: pepxml.is_decoy(x, self.decoy_tag)],
+            'other_prot_ids': [self.get_other_prot_ids],
+            self.qval_key: [self.qval_key_f],
+            'prot_id': [self.get_prot_id],
+            'start': [lambda x,y: self.get_prot_start(x, y, self.fdb), 'Seq', 'prot_id'],
+            'var_mods_pos': [self.get_var_mods_pos, 'Seq']
+        }
+        self.pepxml_data = pepxml_data
+
+
+    @staticmethod
+    def get_prot_id(psm):
+        return psm['search_hit'][0]['proteins'][0]['protein']
+
+    @staticmethod
+    def get_seq(psm):
+        return psm['search_hit'][0]['peptide']
+
+    @staticmethod
+    def get_other_prot_ids(psm):
+        return [p['protein'] for p in psm['search_hit'][0]['proteins'][1:]]
+
+    @staticmethod
+    def get_calc_mass(psm):
+        return psm['search_hit'][0]['calc_neutral_pep_mass']
+
+    @staticmethod
+    def get_delta_mass(psm):
+        return psm['search_hit'][0]['massdiff']
+
+    def get_score(self, psm):
+        return psm['search_hit'][0]['search_score'][self.score]
+
+    @staticmethod
+    def get_prot_start(pept_seq, prot_id, fdb):
+        seq_rec = fdb.get(prot_id, None)
+        if seq_rec is None:
+            pstart = -1
+        else:
+            prot_seq = seq_rec.seq
+            pstart = prot_seq.find(pept_seq)
+        return pstart
+
+    @staticmethod
+    def get_var_mods_pos(psm, pept_seq):
+        var_mods = psm['search_hit'][0]['modifications']
+        var_mods_pos = [0] * len(pept_seq)
+        for m in var_mods:
+            mod_aa = pept_seq[m['position']-1]
+            mass = m['mass'] - np.round(std_aa_mass[mod_aa])
+            var_mods_pos[m['position']-1] = mass
+        return var_mods_pos
+
+    @staticmethod
+    def get_delta_mass_mods_pos(psm, pept_seq):
+        ptm_result = psm['search_hit'][0]['ptm_result']
+        delta_mass_mods_pos = [0] * len(pept_seq)
+        delta_mass_mods_weights = [0] * len(pept_seq)
+        # Loop through positions and insert mass into delta_mass_mods_pos
+        pos = ptm_result['localization'].split('_')
+        w = 1/len(pos)
+        for p in pos:
+            if p == '':
+                break
+            p = int(p)
+            delta_mass_mods_pos[p-1] = ptm_result['ptm_mass']
+            delta_mass_mods_weights[p-1] = w
+        return delta_mass_mods_pos, delta_mass_mods_weights
 
     @staticmethod
     def mascot_expectation(psm):
@@ -140,6 +177,9 @@ class PepXMLdataExtractor:
         return psm['retention_time_sec']
 
     def get_pepxml_data(self, psm, fdb):
+        pass
+
+    def get_pepxml_data_old(self, psm, fdb):
         rt = self.rt_f(psm)
         scan_no = self.scan_no_f(psm)
         if 'search_hit' not in psm:
@@ -149,9 +189,7 @@ class PepXMLdataExtractor:
                         self.empty_qval_key]
         else:
             pept_seq = psm['search_hit'][0]['peptide']
-            prot_id, pstart, pend = get_prot_info(
-                pept_seq, psm['search_hit'][0]['proteins'],
-                fdb, field='protein')
+            prot_id, pstart, pend = get_prot_start(pept_seq, psm['search_hit'][0]['proteins'], fdb)
             proteins = psm['search_hit'][0]['proteins']
             if len(proteins) > 1:
                 other_prot_ids = [p['protein'] for p in proteins[1:]]
@@ -161,7 +199,7 @@ class PepXMLdataExtractor:
             delta_mass = psm['search_hit'][0]['massdiff']
             calc_mass = psm['search_hit'][0]['calc_neutral_pep_mass']
             qval_key = self.qval_key_f(psm)
-
+            score = psm['search_hit'][0]['search_score'][self.score]
             # extract Variable modification information
             var_mods = psm['search_hit'][0]['modifications']
             var_mods_pos = [0] * len(pept_seq)
@@ -171,13 +209,18 @@ class PepXMLdataExtractor:
                 var_mods_pos[m['position']-1] = mass
 
             # Extract delta_mass mods information
-            ptm_result = psm['ptm_result']
+            ptm_result = psm['search_hit'][0]['ptm_result']
             delta_mass_mods_pos = [0] * len(pept_seq)
+            delta_mass_mods_weights = [0] * len(pept_seq)
             # Loop through positions and insert mass into delta_mass_mods_pos
-            for p in ptm_result['localization'].split('_'):
+            pos = ptm_result['localization'].split('_')
+            w = 1/len(pos)
+            for p in pos:
                 if p == '':
                     break
                 p = int(p)
+                delta_mass_mods_pos[p-1] = ptm_result['ptm_mass']
+                delta_mass_mods_weights[p-1] = w
 
 
             psm_data = {
@@ -188,11 +231,14 @@ class PepXMLdataExtractor:
                 'other_prot_ids': other_prot_ids,
                 'start': pstart,
                 'end': pend,
+                'score': score,
                 'is_decoy': isdecoy,
                 'calc_mass': calc_mass,
                 'delta_mass': delta_mass,
                 self.qval_key: qval_key,
-                'var_mods_pos': var_mods_pos
+                'var_mods_pos': var_mods_pos,
+                'delta_mass_mods_pos': delta_mass_mods_pos,
+                'delta_mass_mods_weights': delta_mass_mods_weights
             }
 
         return psm_data
@@ -232,30 +278,46 @@ class FragPipeRun:
                 sys.exit("Unknown format: " + self.format)
             files.append(file)
         self.files = files
-        self.column_data = [
-            ('Spectrum', 'Scan_No', -1),
-            ('Peptide', 'Seq', ''),
-            ('Retention', 'RTsec', np.nan),
-            ('Calculated Peptide Mass', 'calc_mass', np.nan),
-            ('Delta Mass', 'delta_mass', np.nan),
-            ('Hyperscore', 'hyperscore', np.nan),
-            ('PeptideProphet Probability', 'probability', np.nan),
-            ('Protein Start', 'start', -1),
-            ('Protein End', 'end', -1),
-            ('Intensity', 'intensity', np.nan),
-            ('Protein', 'prot_id', ''),
-            ('Mapped Proteins', 'other_prot_ids', []),
-            ('Assigned Modifications', 'var_mods_pos', []),
-            ('Observed Modifications', 'delta_mass_mods', []),
-            ('MSFragger Localization', 'delta_mass_mods_pos', []),
-            (None, 'is_decoy', None),
-            (None, '')
-        ]
         self.experiments = experiments
+
         if self.format == 'tsv':
             self.fragpipe_tsv_target = load_psm_table
+            self.column_data = [
+                ('Scan_No', 'Spectrum', -1),
+                ('Seq', 'Peptide', ''),
+                ('RTsec', 'Retention', np.nan),
+                ('calc_mass', 'Calculated Peptide Mass', np.nan),
+                ('delta_mass', 'Delta Mass', np.nan),
+                ('hyperscore', 'Hyperscore', np.nan),
+                ('probability', 'PeptideProphet Probability', np.nan),
+                ('start', 'Protein Start', -1),
+                ('intensity', 'Intensity', np.nan),
+                ('prot_id', 'Protein', ''),
+                ('other_prot_ids', 'Mapped Proteins', []),
+                ('var_mods_pos', 'Assigned Modifications', []),
+                ('delta_mass_mods', 'Observed Modifications', []),
+                ('delta_mass_mods_pos', 'MSFragger Localization', []),
+                ('is_decoy', None, None),
+                ('', None, None)
+            ]
         elif self.format == 'pepXML':
-            self.fragpipe_pepxml_target = PepXMLdataExtractor(flavour='fragpipe')
+            self.pepxml_data = [
+                ('Scan_No', -1),
+                ('Seq', ''),
+                ('RTsec', np.nan),
+                ('calc_mass', np.nan),
+                ('delta_mass', np.nan),
+                ('hyperscore', np.nan),
+                ('probability', np.nan),
+                ('start', -1),
+                ('prot_id', ''),
+                ('other_prot_ids', []),
+                ('var_mods_pos', []),
+                ('delta_mass_mods_pos', []),
+                ('delta_mass_mods_weights', []),
+                ('is_decoy', None)
+            ]
+            self.fragpipe_pepxml_target = PepXMLdataExtractor(flavour='fragpipe', pepxml_data=self.pepxml_data)
         else:
             sys.exit('Unknown format: ' + self.format)
         self.exp_psms = []
