@@ -58,77 +58,81 @@ class PepXMLdataExtractor:
     the pepxml map method to extractdata from PSMs.
     It works with Mascot and FragPipe pepxml flavours
     """
-    def __init__(self, flavour, pepxml_data, fdb, decoy_tag='rev_'):
+    def __init__(self, flavour, scan_fields, hit_fields, fdb, decoy_tag='rev_'):
         self.decoy_tag = decoy_tag
         self.fdb = fdb
-        if flavour == 'mascot':
-            self.qval_key_f = self.mascot_expectation
-            self.scan_no_f = self.mascot_scan_no
-            self.rt_f = self.mascot_rt
-            self.qval_key = 'expectation'
-            self.score = 'ionscore'
-        elif flavour == 'fragpipe':
-            self.qval_key_f = self.fragpipe_probability
-            self.scan_no_f = self.fragpipe_scan_no
-            self.rt_f = self.fragpipe_rt
-            self.qval_key = 'probability'
-            self.score = 'hyperscore'
+        self.scan_fields = scan_fields
+        self.hit_fields = hit_fields
 
-        self.pepxml_functions = {
-            'Scan_No': [self.scan_no_f],
-            'RTsec': [self.rt_f],
-            'Seq': [self.get_seq],
-            'calc_mass': [self.get_calc_mass],
-            'delta_mass': [self.get_delta_mass],
-            'delta_mass_mods_pos': [self.get_delta_mass_mods_pos, 'Seq'],
-            'delta_mass_mods_weights': [lambda x: x[1], 'delta_mass_mods_pos'],
-            'hyperscore': [self.get_score],
-            'is_decoy': [lambda x: pepxml.is_decoy(x, self.decoy_tag)],
-            'other_prot_ids': [self.get_other_prot_ids],
-            self.qval_key: [self.qval_key_f],
-            'prot_id': [self.get_prot_id],
-            'start': [lambda x,y: self.get_prot_start(x, y, self.fdb), 'Seq', 'prot_id'],
-            'var_mods_pos': [self.get_var_mods_pos, 'Seq']
+        self.scan_functions = {}
+        self.hit_functions = {
+            'Seq': [self.get_seq, ''],
+            'calc_mass': [self.get_calc_mass, np.nan],
+            'delta_mass': [self.get_delta_mass, np.nan],
+            'delta_mass_mods_pos': [self.get_delta_mass_mods_pos, [], 'Seq'],
+            'delta_mass_mods_weights': [lambda x: x[1], [], 'delta_mass_mods_pos'],
+            'is_decoy': [lambda x: pepxml.is_decoy(x, self.decoy_tag), None],
+            'other_prot_ids': [self.get_other_prot_ids, []],
+            'prot_id': [self.get_prot_id, ''],
+            'start': [lambda x, y: self.get_prot_start(x, y, self.fdb), '-1', 'Seq', 'prot_id'],
+            'var_mods_pos': [self.get_var_mods_pos, [], 'Seq']
         }
-        self.pepxml_data = pepxml_data
 
+        if flavour == 'mascot':
+            self.scan_functions['Scan_No'] = [self.mascot_scan_no, -1]
+            self.scan_functions['RTsec'] = [self.mascot_rt, np.nan]
+            self.hit_functions['expectation'] = [self.mascot_expectation, np.nan]
+            self.hit_functions['score'] = [lambda x: self.get_score(x, 'ionscore'), np.nan]
+        elif flavour == 'fragpipe':
+            self.scan_functions['Scan_No'] = [self.fragpipe_scan_no, -1]
+            self.scan_functions['RTsec'] = [self.fragpipe_rt, np.nan]
+            self.hit_functions['probability'] = [self.fragpipe_probability, np.nan]
+            self.hit_functions['score'] = [lambda x: self.get_score(x, 'hyperscore'), np.nan]
+
+        empty_sample = {}
+        for field in self.scan_fields:
+            empty_sample[field] = self.scan_functions[field][1]
+        for field in self.hit_fields:
+            empty_sample[field] = self.hit_functions[field][1]
+        self.empty_sample = empty_sample
 
     @staticmethod
-    def get_prot_id(psm):
-        return psm['search_hit'][0]['proteins'][0]['protein']
+    def get_prot_id(search_hit):
+        return search_hit['proteins'][0]['protein']
 
     @staticmethod
-    def get_seq(psm):
-        return psm['search_hit'][0]['peptide']
+    def get_seq(search_hit):
+        return search_hit['peptide']
 
     @staticmethod
-    def get_other_prot_ids(psm):
-        return [p['protein'] for p in psm['search_hit'][0]['proteins'][1:]]
+    def get_other_prot_ids(search_hit):
+        return [p['protein'] for p in search_hit['proteins'][1:]]
 
     @staticmethod
-    def get_calc_mass(psm):
-        return psm['search_hit'][0]['calc_neutral_pep_mass']
+    def get_calc_mass(search_hit):
+        return search_hit['calc_neutral_pep_mass']
 
     @staticmethod
-    def get_delta_mass(psm):
-        return psm['search_hit'][0]['massdiff']
+    def get_delta_mass(search_hit):
+        return search_hit['massdiff']
 
-    def get_score(self, psm):
-        return psm['search_hit'][0]['search_score'][self.score]
+    @staticmethod
+    def get_score(search_hit, score):
+        return search_hit['search_score'][score]
 
     @staticmethod
     def get_prot_start(pept_seq, prot_id, fdb):
         seq_rec = fdb.get(prot_id, None)
         if seq_rec is None:
-            pstart = -1
+            prot_start = -1
         else:
             prot_seq = seq_rec.seq
-            pstart = prot_seq.find(pept_seq)
-        return pstart
+            prot_start = prot_seq.find(pept_seq)
+        return prot_start
 
     @staticmethod
-    def get_var_mods_pos(psm, pept_seq):
-        var_mods = psm['search_hit'][0]['modifications']
+    def get_var_mods_pos(search_hit, pept_seq):
+        var_mods = search_hit['modifications']
         var_mods_pos = [0] * len(pept_seq)
         for m in var_mods:
             mod_aa = pept_seq[m['position']-1]
@@ -137,8 +141,8 @@ class PepXMLdataExtractor:
         return var_mods_pos
 
     @staticmethod
-    def get_delta_mass_mods_pos(psm, pept_seq):
-        ptm_result = psm['search_hit'][0]['ptm_result']
+    def get_delta_mass_mods_pos(search_hit, pept_seq):
+        ptm_result = search_hit['ptm_result']
         delta_mass_mods_pos = [0] * len(pept_seq)
         delta_mass_mods_weights = [0] * len(pept_seq)
         # Loop through positions and insert mass into delta_mass_mods_pos
@@ -153,8 +157,8 @@ class PepXMLdataExtractor:
         return delta_mass_mods_pos, delta_mass_mods_weights
 
     @staticmethod
-    def mascot_expectation(psm):
-        return psm['search_hit'][0]['search_score']['expect']
+    def mascot_expectation(search_hit):
+        return search_hit['search_score']['expect']
 
     @staticmethod
     def mascot_scan_no(psm):
@@ -165,8 +169,8 @@ class PepXMLdataExtractor:
         return float(psm['search_specification'].split(' ')[2].split('(')[1].rstrip(')'))
 
     @staticmethod
-    def fragpipe_probability(psm):
-        return psm['search_hit'][0]['analysis_result'][0]['peptideprophet_result']['probability']
+    def fragpipe_probability(search_hit):
+        return search_hit['analysis_result'][0]['peptideprophet_result']['probability']
 
     @staticmethod
     def fragpipe_scan_no(psm):
@@ -176,8 +180,20 @@ class PepXMLdataExtractor:
     def fragpipe_rt(psm):
         return psm['retention_time_sec']
 
-    def get_pepxml_data(self, psm, fdb):
-        pass
+    def get_pepxml_data(self, psm):
+        data = {}
+        for field in self.scan_fields:
+            data[field] = self.scan_functions[field][0]
+
+        search_hit = psm.get('search_hit')
+        if search_hit is None:
+            for field in self.hit_fields:
+                data[field] = self.hit_functions[field][1]
+        else:
+            for field in self.hit_fields:
+                args = [data[k] for k in self.hit_functions[field][2:]]
+                data[field] = self.hit_functions[field][0](psm, *args)
+        return data
 
     def get_pepxml_data_old(self, psm, fdb):
         rt = self.rt_f(psm)
@@ -302,20 +318,20 @@ class FragPipeRun:
             ]
         elif self.format == 'pepXML':
             self.pepxml_data = [
-                ('Scan_No', -1),
-                ('Seq', ''),
-                ('RTsec', np.nan),
-                ('calc_mass', np.nan),
-                ('delta_mass', np.nan),
-                ('hyperscore', np.nan),
-                ('probability', np.nan),
-                ('start', -1),
-                ('prot_id', ''),
-                ('other_prot_ids', []),
-                ('var_mods_pos', []),
-                ('delta_mass_mods_pos', []),
-                ('delta_mass_mods_weights', []),
-                ('is_decoy', None)
+                'Scan_No',
+                'Seq',
+                'RTsec',
+                'calc_mass',
+                'delta_mass',
+                'hyperscore',
+                'probability',
+                'start',
+                'prot_id',
+                'other_prot_ids',
+                'var_mods_pos',
+                'delta_mass_mods_pos',
+                'delta_mass_mods_weights',
+                'is_decoy',
             ]
             self.fragpipe_pepxml_target = PepXMLdataExtractor(flavour='fragpipe', pepxml_data=self.pepxml_data)
         else:
@@ -336,17 +352,11 @@ class FragPipeRun:
             print(f'\tReading sample {self.experiments[i]} ... ', end='')
             exp_pepxml = pepxml.PepXML(self.files[i])
             if len(exp_pepxml) == 0:
-                psm_data = [self.fragpipe_pepxml_target.empty_sample()]
+                psm_data = [self.fragpipe_pepxml_target.empty_sample]
             else:
                 psm_data = exp_pepxml.map(
-                    self.fragpipe_pepxml_target, processes=n_procs, fdb=self.db)
+                    self.fragpipe_pepxml_target, processes=n_procs)
             psm_data = pd.DataFrame(psm_data)
-            psm_data.columns = [
-                'Scan_No', 'RTsec', 'Seq',
-                'prot_id', 'start', 'end',
-                'is_decoy', 'calc_mass', 'delta_mass',
-                'probability'
-            ]
             psm_data['Run_id'] = self.run_id
             psm_data['Sample'] = self.experiments[i]
             psm_data = pepxml.qvalues(
@@ -368,8 +378,6 @@ class FragPipeRun:
             frag_psm_data.append(psm_data)
         frag_psm_data = pd.concat(frag_psm_data)
         return frag_psm_data
-
-
 
     def read(self, n_procs=6):
         if self.format == 'pepXML':
