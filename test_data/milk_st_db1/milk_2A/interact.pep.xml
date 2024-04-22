@@ -1,0 +1,5 @@
+<msms_pipeline_analysis date="2024-03-13T16:50:13" xmlns="http://regis-web.systemsbiology.net/pepXML" summary_xml="/home/ismael/palaeoproteomics/briquettes/fp_results/milk_st_db1/milk_1A/interact.pep.xml" xsi:schemaLocation="http://regis-web.systemsbiology.net/pepXML /usr/local/tppschema/pepXML_v122.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<msms_run_summary base_name="/home/ismael/palaeoproteomics/briquettes/mzml_data/milk_1A" raw_data_type="mzML" comment="This pepXML was from calibrated spectra." raw_data="mzML">
+</msms_run_summary>
+</msms_pipeline_analysis>
+
