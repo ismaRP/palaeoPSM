@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type="text/xsl" href="/home/ismael/palaeoproteomics/briquettes/fp_results/milk_st_db1/milk_1B/interact.pep.xsl"?>
+<msms_pipeline_analysis date="2024-03-13T16:50:14" xmlns="http://regis-web.systemsbiology.net/pepXML" summary_xml="/home/ismael/palaeoproteomics/briquettes/fp_results/milk_st_db1/milk_1B/interact.pep.xml" xsi:schemaLocation="http://regis-web.systemsbiology.net/pepXML /usr/local/tppschema/pepXML_v122.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<msms_run_summary base_name="/home/ismael/palaeoproteomics/briquettes/mzml_data/milk_2B" raw_data_type="mzML" comment="This pepXML was from calibrated spectra." raw_data="mzML">	
+<spectrum_query start_scan="367" uncalibrated_precursor_neutral_mass="1265.5522" assumed_charge="2" spectrum="milk_1B.00367.00367.2" end_scan="367" index="1" precursor_neutral_mass="1265.5496" retention_time_sec="135.25494">
+<search_result>
+<search_hit peptide="SCQAQPTTMAR" massdiff="0.0004" calc_neutral_pep_mass="1265.5492" peptide_next_aa="H" num_missed_cleavages="0" num_tol_term="2" protein_descr="Kappa-casein OS=Bos taurus OX=9913 GN=CSN3 PE=1 SV=1" num_tot_proteins="1" tot_num_ions="20" hit_rank="1" num_matched_ions="10" protein="sp|P02668|CASK_BOVIN" peptide_prev_aa="K" is_rejected="0">
+<modification_info modified_peptide="SCQAQPTTM[147]AR">
+<mod_aminoacid_mass mass="160.03065" position="2"/>
+<mod_aminoacid_mass mass="147.0354" position="9"/>
+</modification_info>
+<search_score name="hyperscore" value="19.8"/>
+<search_score name="nextscore" value="16.348"/>
+<search_score name="expect" value="2.507263e-01"/>
+<analysis_result analysis="peptideprophet">
+<peptideprophet_result probability="0.9963" all_ntt_prob="(0.0046,0.8816,0.9963)">
+<search_score_summary>
+<parameter name="fval" value="2.0375"/>
+<parameter name="ntt" value="2"/>
+<parameter name="nmc" value="0"/>
+<parameter name="massd" value="0.000"/>
+</search_score_summary>
+</peptideprophet_result>
+</analysis_result>
+</search_hit>
+</search_result>
+</spectrum_query>
+<spectrum_query start_scan="420" uncalibrated_precursor_neutral_mass="1208.5306" assumed_charge="2" spectrum="milk_1B.00420.00420.2" end_scan="420" index="8" precursor_neutral_mass="1208.5269" retention_time_sec="146.73286">
+<search_result>
+<search_hit peptide="CQAQPTTMAR" massdiff="30.0098" calc_neutral_pep_mass="1178.5171" peptide_next_aa="H" num_missed_cleavages="0" num_tol_term="1" protein_descr="Kappa-casein OS=Bos taurus OX=9913 GN=CSN3 PE=1 SV=1" num_tot_proteins="1" tot_num_ions="18" hit_rank="1" num_matched_ions="5" protein="sp|P02668|CASK_BOVIN" peptide_prev_aa="S" is_rejected="0">
+<modification_info modified_peptide="CQAQPTTM[147]AR">
+<mod_aminoacid_mass mass="160.03065" position="1"/>
+<mod_aminoacid_mass mass="147.0354" position="8"/>
+</modification_info>
+<search_score name="hyperscore" value="11.427"/>
+<search_score name="nextscore" value="11.427"/>
+<search_score name="expect" value="1.854599e-01"/>
+<ptm_result localization="1" best_score_with_ptm="11.427658" score_without_ptm="5.413938" localization_peptide="cQAQPTTMAR" second_best_score_with_ptm="10.154688" ptm_mass="30.009766"/>
+<analysis_result analysis="peptideprophet">
+<peptideprophet_result probability="0.8112" all_ntt_prob="(0.0027,0.8112,0.9937)">
+<search_score_summary>
+<parameter name="fval" value="2.2637"/>
+<parameter name="ntt" value="1"/>
+<parameter name="nmc" value="0"/>
+<parameter name="massd" value="30.010"/>
+</search_score_summary>
+</peptideprophet_result>
+</analysis_result>
+</search_hit>
+</search_result>
+</spectrum_query>
+<spectrum_query start_scan="606" uncalibrated_precursor_neutral_mass="1269.6213" assumed_charge="3" spectrum="milk_1B.00606.00606.3" end_scan="606" index="31" precursor_neutral_mass="1269.6179" retention_time_sec="178.06166">
+<search_result>
+<search_hit peptide="KAEAESLYQSK" massdiff="16.004" calc_neutral_pep_mass="1253.6139" peptide_next_aa="Y" num_missed_cleavages="0" num_tol_term="1" protein_descr="Keratin, type II cytoskeletal 1 OS=Homo sapiens OX=9606 GN=KRT1 PE=1 SV=6" num_tot_proteins="1" tot_num_ions="20" hit_rank="1" num_matched_ions="4" protein="sp|P04264|K2C1_HUMAN" peptide_prev_aa="S" is_rejected="0">
+<modification_info modified_peptide="KAEAESLYQ[129]SK">
+<mod_aminoacid_mass mass="129.04257" position="9"/>
+</modification_info>
+<search_score name="hyperscore" value="9.67"/>
+<search_score name="nextscore" value="9.67"/>
+<search_score name="expect" value="1.049270e+00"/>
+<ptm_result localization="5_6_7_8_9" best_score_with_ptm="9.670477" score_without_ptm="9.670477" localization_peptide="KAEAeslyqSK" second_best_score_with_ptm="8.662587" ptm_mass="16.004028"/>
+<analysis_result analysis="peptideprophet">
+<peptideprophet_result probability="0.1388" all_ntt_prob="(0.5942,0.1388,0.9066)">
+<search_score_summary>
+<parameter name="fval" value="0.9639"/>
+<parameter name="ntt" value="1"/>
+<parameter name="nmc" value="0"/>
+<parameter name="massd" value="16.004"/>
+</search_score_summary>
+</peptideprophet_result>
+</analysis_result>
+</search_hit>
+</search_result>
+</spectrum_query>
+</msms_run_summary>
+</msms_pipeline_analysis>
+

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type="text/xsl" href="/home/ismael/palaeoproteomics/briquettes/fp_results/milk_st_db1/milk_2B/interact.pep.xsl"?>
+<msms_pipeline_analysis date="2024-03-13T16:50:13" xmlns="http://regis-web.systemsbiology.net/pepXML" summary_xml="/home/ismael/palaeoproteomics/briquettes/fp_results/milk_st_db1/milk_2B/interact.pep.xml" xsi:schemaLocation="http://regis-web.systemsbiology.net/pepXML /usr/local/tppschema/pepXML_v122.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<msms_run_summary base_name="/home/ismael/palaeoproteomics/briquettes/mzml_data/milk_2B" raw_data_type="mzML" comment="This pepXML was from calibrated spectra." raw_data="mzML">
+<spectrum_query start_scan="721" uncalibrated_precursor_neutral_mass="852.4667" assumed_charge="2" spectrum="milk_2B.00721.00721.2" end_scan="721" index="6" precursor_neutral_mass="852.4642" retention_time_sec="256.4306">
+<search_result>
+<search_hit peptide="ALPMHIR" massdiff="0.0003" calc_neutral_pep_mass="852.4639" peptide_next_aa="L" num_missed_cleavages="0" num_tol_term="2" protein_descr="Beta-lactoglobulin Variant A OS=Bos taurus OX=9913 GN=LGB PE=1 SV=3" num_tot_proteins="4" tot_num_ions="12" hit_rank="1" num_matched_ions="6" protein="sp|P02754A|LACB_BOVIN" peptide_prev_aa="K" is_rejected="0">
+<alternative_protein protein="sp|P02754B|LACB_BOVIN" protein_descr="Beta-lactoglobulin OS=Bos taurus OX=9913 GN=LGB PE=1 SV=3" num_tol_term="2" peptide_prev_aa="K" peptide_next_aa="L"/>
+<alternative_protein protein="sp|P02754C|LACB_BOVIN" protein_descr="Beta-lactoglobulin Variant C OS=Bos taurus OX=9913 GN=LGB PE=1 SV=3" num_tol_term="2" peptide_prev_aa="K" peptide_next_aa="L"/>
+<alternative_protein protein="sp|P02754D|LACB_BOVIN" protein_descr="Beta-lactoglobulin Variant D OS=Bos taurus OX=9913 GN=LGB PE=1 SV=3" num_tol_term="2" peptide_prev_aa="K" peptide_next_aa="L"/>
+<modification_info modified_peptide="ALPM[147]HIR">
+<mod_aminoacid_mass mass="147.0354" position="4"/>
+</modification_info>
+<search_score name="hyperscore" value="12.238"/>
+<search_score name="nextscore" value="7.574"/>
+<search_score name="expect" value="1.251795e-01"/>
+<analysis_result analysis="peptideprophet">
+<peptideprophet_result probability="0.9990" all_ntt_prob="(0.0193,0.9144,0.9990)">
+<search_score_summary>
+<parameter name="fval" value="2.5585"/>
+<parameter name="ntt" value="2"/>
+<parameter name="nmc" value="0"/>
+<parameter name="massd" value="0.000"/>
+</search_score_summary>
+</peptideprophet_result>
+</analysis_result>
+</search_hit>
+</search_result>
+</spectrum_query>
+<spectrum_query start_scan="744" uncalibrated_precursor_neutral_mass="948.53394" assumed_charge="2" spectrum="milk_2B.00744.00744.2" end_scan="744" index="8" precursor_neutral_mass="948.5335" retention_time_sec="261.85443">
+<search_result>
+<search_hit peptide="LIVTQTMK" massdiff="0.0021" calc_neutral_pep_mass="948.5314" peptide_next_aa="G" num_missed_cleavages="0" num_tol_term="1" protein_descr="Beta-lactoglobulin Variant A OS=Bos taurus OX=9913 GN=LGB PE=1 SV=3" num_tot_proteins="4" tot_num_ions="14" hit_rank="1" num_matched_ions="7" protein="sp|P02754A|LACB_BOVIN" peptide_prev_aa="A" is_rejected="0">
+<alternative_protein protein="sp|P02754B|LACB_BOVIN" protein_descr="Beta-lactoglobulin OS=Bos taurus OX=9913 GN=LGB PE=1 SV=3" num_tol_term="1" peptide_prev_aa="A" peptide_next_aa="G"/>
+<alternative_protein protein="sp|P02754C|LACB_BOVIN" protein_descr="Beta-lactoglobulin Variant C OS=Bos taurus OX=9913 GN=LGB PE=1 SV=3" num_tol_term="1" peptide_prev_aa="A" peptide_next_aa="G"/>
+<alternative_protein protein="sp|P02754D|LACB_BOVIN" protein_descr="Beta-lactoglobulin Variant D OS=Bos taurus OX=9913 GN=LGB PE=1 SV=3" num_tol_term="1" peptide_prev_aa="A" peptide_next_aa="G"/>
+<modification_info modified_peptide="LIVTQTM[147]K">
+<mod_aminoacid_mass mass="147.0354" position="7"/>
+</modification_info>
+<search_score name="hyperscore" value="14.671"/>
+<search_score name="nextscore" value="11.143"/>
+<search_score name="expect" value="4.095759e-03"/>
+<analysis_result analysis="peptideprophet">
+<peptideprophet_result probability="0.9592" all_ntt_prob="(0.0415,0.9592,0.9995)">
+<search_score_summary>
+<parameter name="fval" value="5.1234"/>
+<parameter name="ntt" value="1"/>
+<parameter name="nmc" value="0"/>
+<parameter name="massd" value="0.002"/>
+</search_score_summary>
+</peptideprophet_result>
+</analysis_result>
+</search_hit>
+</search_result>
+</spectrum_query>
+<spectrum_query start_scan="1032" uncalibrated_precursor_neutral_mass="1307.6489" assumed_charge="3" spectrum="milk_2B.01032.01032.3" end_scan="1032" index="50" precursor_neutral_mass="1307.6455" retention_time_sec="314.21243">
+<search_result>
+<search_hit peptide="NKYEDEINKR" massdiff="-0.00143" calc_neutral_pep_mass="1307.64693" peptide_next_aa="T" num_missed_cleavages="1" num_tol_term="2" protein_descr="Keratin, type II cytoskeletal 1 OS=Homo sapiens OX=9606 GN=KRT1 PE=1 SV=6" num_tot_proteins="1" tot_num_ions="16" hit_rank="1" num_matched_ions="4" protein="sp|P04264|K2C1_HUMAN" peptide_prev_aa="R" is_rejected="0">
+<search_score name="hyperscore" value="8.15"/>
+<search_score name="nextscore" value="0.0"/>
+<search_score name="expect" value="1.223207e+00"/>
+<ptm_result localization="3_4" best_score_with_ptm="8.150861" score_without_ptm="8.150861" localization_peptide="NKyeDEINKR" second_best_score_with_ptm="6.593703" ptm_mass="114.041504"/>
+<analysis_result analysis="peptideprophet">
+<peptideprophet_result probability="0.9755" all_ntt_prob="(0.9988,0.3901,0.9755)">
+<search_score_summary>
+<parameter name="fval" value="0.8489"/>
+<parameter name="ntt" value="2"/>
+<parameter name="nmc" value="1"/>
+<parameter name="massd" value="-0.001"/>
+</search_score_summary>
+</peptideprophet_result>
+</analysis_result>
+</search_hit>
+</search_result>
+</spectrum_query>
+</msms_run_summary>
+</msms_pipeline_analysis>
+

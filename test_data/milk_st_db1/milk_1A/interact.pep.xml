@@ -1,0 +1,75 @@
+
+<msms_pipeline_analysis date="2024-03-13T16:50:13" xmlns="http://regis-web.systemsbiology.net/pepXML" summary_xml="/home/ismael/palaeoproteomics/briquettes/fp_results/milk_st_db1/milk_1A/interact.pep.xml" xsi:schemaLocation="http://regis-web.systemsbiology.net/pepXML /usr/local/tppschema/pepXML_v122.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<msms_run_summary base_name="/home/ismael/palaeoproteomics/briquettes/mzml_data/milk_1A" raw_data_type="mzML" comment="This pepXML was from calibrated spectra." raw_data="mzML">
+<spectrum_query start_scan="873" uncalibrated_precursor_neutral_mass="1394.6809" assumed_charge="3" spectrum="milk_1A.00873.00873.3" end_scan="873" index="61" precursor_neutral_mass="1394.6788" retention_time_sec="260.89215">
+<search_result>
+<search_hit peptide="HIQKEDVPSER" massdiff="57.0213" calc_neutral_pep_mass="1337.6575" peptide_next_aa="Y" num_missed_cleavages="1" num_tol_term="2" protein_descr="Alpha-S1-casein OS=Bos taurus OX=9913 GN=CSN1S1 PE=1 SV=2" num_tot_proteins="1" tot_num_ions="20" hit_rank="1" num_matched_ions="8" protein="sp|P02662|CASA1_BOVIN" peptide_prev_aa="K" is_rejected="0">
+<modification_info modified_peptide="HIQ[129]KEDVPSER">
+<mod_aminoacid_mass mass="129.04257" position="3"/>
+</modification_info>
+<search_score name="hyperscore" value="15.931"/>
+<search_score name="nextscore" value="15.931"/>
+<search_score name="expect" value="2.148920e-03"/>
+<ptm_result localization="3_4_5" best_score_with_ptm="15.931777" score_without_ptm="12.615927" localization_peptide="HIqkeDVPSER" second_best_score_with_ptm="14.587496" ptm_mass="57.021362"/>
+<analysis_result analysis="peptideprophet">
+<peptideprophet_result probability="1.0000" all_ntt_prob="(1.0000,0.9957,1.0000)">
+<search_score_summary>
+<parameter name="fval" value="5.6071"/>
+<parameter name="ntt" value="2"/>
+<parameter name="nmc" value="1"/>
+<parameter name="massd" value="57.021"/>
+</search_score_summary>
+</peptideprophet_result>
+</analysis_result>
+</search_hit>
+</search_result>
+</spectrum_query>
+<spectrum_query start_scan="874" uncalibrated_precursor_neutral_mass="1105.5208" assumed_charge="2" spectrum="milk_1A.00874.00874.2" end_scan="874" index="62" precursor_neutral_mass="1105.5194" retention_time_sec="261.0219">
+<search_result>
+<search_hit peptide="VTMQNLNDR" massdiff="0.0008" calc_neutral_pep_mass="1105.5186" peptide_next_aa="L" num_missed_cleavages="0" num_tol_term="2" protein_descr="Keratin, type I cytoskeletal 10 OS=Homo sapiens OX=9606 GN=KRT10 PE=1 SV=6" num_tot_proteins="1" tot_num_ions="16" hit_rank="1" num_matched_ions="6" protein="sp|P13645|K1C10_HUMAN" peptide_prev_aa="K" is_rejected="0">
+<modification_info modified_peptide="VTM[147]QNLNDR">
+<mod_aminoacid_mass mass="147.0354" position="3"/>
+</modification_info>
+<search_score name="hyperscore" value="12.561"/>
+<search_score name="nextscore" value="12.367"/>
+<search_score name="expect" value="9.132441e-01"/>
+<analysis_result analysis="peptideprophet">
+<peptideprophet_result probability="0.9971" all_ntt_prob="(0.8024,0.8491,0.9971)">
+<search_score_summary>
+<parameter name="fval" value="1.0681"/>
+<parameter name="ntt" value="2"/>
+<parameter name="nmc" value="0"/>
+<parameter name="massd" value="0.001"/>
+</search_score_summary>
+</peptideprophet_result>
+</analysis_result>
+</search_hit>
+</search_result>
+</spectrum_query>
+<spectrum_query start_scan="901" uncalibrated_precursor_neutral_mass="1394.6799" assumed_charge="3" spectrum="milk_1A.00901.00901.3" end_scan="901" index="68" precursor_neutral_mass="1394.6788" retention_time_sec="265.15912">
+<search_result>
+<search_hit peptide="HIQKEDVPSER" massdiff="57.0213" calc_neutral_pep_mass="1337.6575" peptide_next_aa="Y" num_missed_cleavages="1" num_tol_term="2" protein_descr="Alpha-S1-casein OS=Bos taurus OX=9913 GN=CSN1S1 PE=1 SV=2" num_tot_proteins="1" tot_num_ions="20" hit_rank="1" num_matched_ions="7" protein="sp|P02662|CASA1_BOVIN" peptide_prev_aa="K" is_rejected="0">
+<modification_info modified_peptide="HIQ[129]KEDVPSER">
+<mod_aminoacid_mass mass="129.04257" position="3"/>
+</modification_info>
+<search_score name="hyperscore" value="13.644"/>
+<search_score name="nextscore" value="13.644"/>
+<search_score name="expect" value="5.980635e-02"/>
+<ptm_result localization="3_4_5" best_score_with_ptm="13.644748" score_without_ptm="12.061208" localization_peptide="HIqkeDVPSER" second_best_score_with_ptm="12.42313" ptm_mass="57.021362"/>
+<analysis_result analysis="peptideprophet">
+<peptideprophet_result probability="0.9999" all_ntt_prob="(1.0000,0.9845,0.9999)">
+<search_score_summary>
+<parameter name="fval" value="3.1125"/>
+<parameter name="ntt" value="2"/>
+<parameter name="nmc" value="1"/>
+<parameter name="massd" value="57.021"/>
+</search_score_summary>
+</peptideprophet_result>
+</analysis_result>
+</search_hit>
+</search_result>
+</spectrum_query>
+</msms_run_summary>
+</msms_pipeline_analysis>
+
+
