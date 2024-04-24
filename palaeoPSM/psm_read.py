@@ -6,16 +6,6 @@ from pyteomics import pepxml
 import os
 from pyteomics.mass import std_aa_mass
 import warnings
-# from pyteomics import mzml
-# from pyteomics import mzid
-# from pyteomics import parser
-# from pyteomics.mass import unimod
-# from lxml import etree
-# import seaborn as sns
-# import matplotlib.pyplot as plt
-# from matplotlib_venn import venn3
-# from Bio import SeqIO
-# import re
 
 
 def load_psm_table(file, column_data, sep):

@@ -1,17 +1,5 @@
 import pandas as pd
 import numpy as np
-from pyteomics import pepxml
-from pyteomics import mzml
-from pyteomics import mzid
-from pyteomics import parser
-from pyteomics.mass import unimod
-import os
-from lxml import etree
-import seaborn as sns
-import matplotlib.pyplot as plt
-from matplotlib_venn import venn3
-from Bio import SeqIO
-import re
 
 
 def merge_true_seq(position_counts, seq_records):
