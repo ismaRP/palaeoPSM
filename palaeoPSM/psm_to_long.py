@@ -47,7 +47,7 @@ def psm_to_long(psm_data_df, seq_records=None, q_val_threshold=0.05):
     position_counts = (
         psm_data_df
         .explode(['pep_positions', 'pep_letters'], ignore_index=True)
-        .groupby(['Run_id', 'Sample', 'gt_005fdr', 'pep_positions', 'pep_letters'])
+        .groupby(['Run_id', 'Sample', 'prot_id', 'gt_005fdr', 'pep_positions', 'pep_letters'])
         .agg('size')
         .reset_index().rename(columns={0: 'count'}))
 
@@ -56,6 +56,6 @@ def psm_to_long(psm_data_df, seq_records=None, q_val_threshold=0.05):
         .groupby(['Run_id', 'Sample', 'prot_id', 'gt_005fdr', 'pep_positions'])['count']
         .transform('sum'))
     position_counts['rel_count'] = position_counts['count'] / position_counts['total_counts']
-
     return position_counts
+
 

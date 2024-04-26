@@ -27,3 +27,4 @@ Issues = "https://github.com/ismaRP/palaeoPSM/issues"
 
 [tool.setuptools]
 packages = ["palaeoPSM"]
+py-modules = ["__init__"]

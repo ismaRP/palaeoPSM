@@ -3,6 +3,7 @@ import sys
 import pandas as pd
 import numpy as np
 from pyteomics import pepxml
+from lxml import etree
 import os
 from pyteomics.mass import std_aa_mass
 import warnings
@@ -22,9 +23,6 @@ def load_psm_table(file, column_data, sep):
             columns=colnames
         )
     return table
-
-
-
 
 
 def get_rt(scan_ns, mzml_spectra):
@@ -53,7 +51,6 @@ class PepXMLdataExtractor:
         self.decoy_tag = decoy_tag
         self.fdb = fdb
         self.fields = fields
-
         # These retrieve data from the scan, like spectrum id or RT
         self.scan_functions = {}
         # These retrieve data from the search_hit
@@ -118,7 +115,8 @@ class PepXMLdataExtractor:
 
     @staticmethod
     def get_delta_mass(search_hit):
-        return search_hit['massdiff']
+        return float(search_hit.get('ptm_result', {}).get('ptm_mass', 0))
+        # return search_hit['massdiff']
 
     @staticmethod
     def get_score(search_hit, score):
@@ -141,34 +139,32 @@ class PepXMLdataExtractor:
     @staticmethod
     def get_var_mods_pos(search_hit, pept_seq):
         var_mods = search_hit.get('modifications')
-        if var_mods is None:
-            return []
         var_mods_pos = [0] * len(pept_seq)
-        for m in var_mods:
-            mod_aa = pept_seq[m['position']-1]
-            mass = np.round(m['mass'] - std_aa_mass[mod_aa], 3)
-            var_mods_pos[m['position']-1] = mass
+        if var_mods is not None:
+            for m in var_mods:
+                mod_aa = pept_seq[m['position']-1]
+                mass = np.round(m['mass'] - std_aa_mass[mod_aa], 3)
+                var_mods_pos[m['position']-1] = mass
         return var_mods_pos
 
     @staticmethod
     def get_delta_mass_mods_pos(search_hit, pept_seq):
         ptm_result = search_hit.get('ptm_result')
-        if ptm_result is None:
-            return []
         delta_mass_mods_pos = [0] * len(pept_seq)
-        # delta_mass_mods_weights = [0] * len(pept_seq)
-        # Loop through positions and insert mass into delta_mass_mods_pos
-        pos = ptm_result['localization'].split('_')
-        # w = 1/len(pos)
-        for p in pos:
-            if p == '':
-                break
-            p = int(p)
-            if p > len(pept_seq):
-                continue
-            delta_mass_mods_pos[p-1] = ptm_result['ptm_mass']
-            # delta_mass_mods_weights[p-1] = w
-        return delta_mass_mods_pos  # , delta_mass_mods_weights
+        if ptm_result is not None:
+            # delta_mass_mods_weights = [0] * len(pept_seq)
+            # Loop through positions and insert mass into delta_mass_mods_pos
+            pos = ptm_result['localization'].split('_')
+            # w = 1/len(pos)
+            for p in pos:
+                if p == '':
+                    break
+                p = int(p)
+                if p > len(pept_seq):
+                    continue
+                delta_mass_mods_pos[p-1] = float(ptm_result['ptm_mass'])
+                # delta_mass_mods_weights[p-1] = w
+        return np.array(delta_mass_mods_pos)  # , delta_mass_mods_weights
 
     @staticmethod
     def mascot_expectation(search_hit):
@@ -215,13 +211,14 @@ class PepXMLdataExtractor:
 
 class FragPipeRun:
 
-    def __init__(self, path, db, run_id, format='tsv', decoy_tag='rev_'):
+    def __init__(self, path, db, run_id, contams, format='tsv', decoy_tag='rev_', n_scans_path=None):
         """
         :param path: Path to results
         :param db: List of SeqRecords
         :param run_id: Identification of the run
         :param format: Format of the FragPipe output to read. Either "tsv" or "pepXML".
                "tsv" will read the psm.tsv file from each experiment, while "pepXML" will read the interact.pep.xml.
+        :param decoy_tag: Decoy tag
         """
         self.path = path
         self.db = db
@@ -229,6 +226,7 @@ class FragPipeRun:
         self.run_id = run_id
         self.format = format
         self.decoy_tag = decoy_tag
+        self.contams = contams
         experiments = []
         files = []
         for f in os.listdir(self.path):
@@ -245,6 +243,9 @@ class FragPipeRun:
             files.append(file)
         self.files = files
         self.experiments = experiments
+
+        self.n_scans_path = n_scans_path
+        self.n_scans = self.count_n_scans()
 
         if self.format == 'tsv':
             self.fragpipe_tsv_target = load_psm_table
@@ -289,6 +290,43 @@ class FragPipeRun:
         self.exp_psms = []
         self.__load_psms()
 
+    def count_n_scans(self):
+        if os.path.exists(self.n_scans_path):
+            if os.path.isfile(self.n_scans_path):
+                print(f'Reading # of scans from {self.n_scans_path}')
+                ext = os.path.splitext(self.n_scans_path)[1]
+                if ext == '.csv':
+                    sep = ','
+                elif ext == '.tsv':
+                    sep = '\t'
+                else:
+                    sys.exit(f'{self.n_scans_path} is not recognsied as a csv or tsv file')
+                n_scans = pd.read_csv(self.n_scans_path, sep=sep)
+            else:  # os.path.isdir(self.n_scans_path)
+                print(f'Reading mzML files from {self.n_scans_path} and counting # of scans')
+                mzml_files = [f for f in os.listdir(self.n_scans_path) if f.endswith('.mzML')]
+                scan_counts = []
+                for f in mzml_files:
+                    sample = f.rstrip('.mzML')
+                    print(f'\tReading sample {sample} ... ', end='')
+                    path = os.path.join(self.n_scans_path, f)
+                    tree = etree.parse(path)
+                    root = tree.getroot()
+                    ms1spectra = root.xpath(
+                        "mzml:mzML/mzml:run/mzml:spectrumList/mzml:spectrum"
+                        "[mzml:cvParam/@name='ms level' and mzml:cvParam/@value='1']",
+                        namespaces={'mzml': 'http://psi.hupo.org/ms/mzml'})
+                    ms2spectra = root.xpath(
+                        "mzml:mzML/mzml:run/mzml:spectrumList/mzml:spectrum"
+                        "[mzml:cvParam/@name='ms level' and mzml:cvParam/@value='2']",
+                        namespaces={'mzml': 'http://psi.hupo.org/ms/mzml'})
+                    scan_counts.append([sample, len(ms1spectra), len(ms2spectra)])
+                    print('Done')
+                n_scans = pd.DataFrame(scan_counts, columns=['sample', 'n_ms1scans', 'n_ms2scans'])
+                print(f'Writing # of scans from {self.n_scans_path}')
+                n_scans.to_csv(os.path.join(self.n_scans_path, 'n_scans.csv'), index=False)
+            return n_scans
+
     def __load_psms(self):
         for f in self.files:
             if self.format == 'pepXML':
@@ -330,10 +368,24 @@ class FragPipeRun:
         frag_psm_data = pd.concat(frag_psm_data)
         return frag_psm_data
 
-    def read(self, n_procs=6):
-        if self.format == 'pepXML':
-            frag_psm_data = self.read_pepxml(n_procs=n_procs)
-        elif self.format == 'tsv':
-            frag_psm_data = self.read_fp_tsv()
+    def read(self, n_procs=1, save_path=None, remove_contams=True, remove_decoy=True):
+        if save_path is None or not os.path.exists(save_path):
+            print(f'Collecting PSMs from {self.format} files')
+            if self.format == 'pepXML':
+                frag_psm_data = self.read_pepxml(n_procs=n_procs)
+            elif self.format == 'tsv':
+                frag_psm_data = self.read_fp_tsv()
+            if save_path is not None:
+                print(f'Saving PSMs to {save_path}')
+                frag_psm_data.to_csv(save_path, index=False)
+        else:
+            print(f'Loading PSMs from {save_path}')
+            frag_psm_data = pd.read_csv(save_path)
+
+        if remove_contams:
+            frag_psm_data = frag_psm_data[~frag_psm_data['prot_id'].isin(self.contams)]
+        if remove_decoy:
+            frag_psm_data = frag_psm_data[~frag_psm_data['is_decoy']]
+
         return frag_psm_data
 
