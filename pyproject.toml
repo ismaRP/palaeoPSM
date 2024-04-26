@@ -19,7 +19,11 @@ classifiers = [
 dependencies = [
   "pandas>=2.0",
   "numpy>=1.26.1",
-  "pyteomics>=4.6.2"
+  "pyteomics>=4.6.2",
+  "lxml>=4.9.3",
+  "biopython>=1.78",
+  "jupyter",
+  "dill"
 ]
 [project.urls]
 Homepage = "https://github.com/ismaRP/palaeoPSM.git"

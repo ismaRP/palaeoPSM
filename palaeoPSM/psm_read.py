@@ -7,12 +7,13 @@ from lxml import etree
 import os
 from pyteomics.mass import std_aa_mass
 import warnings
+import re
 
 
 def load_psm_table(file, column_data, sep):
-    col_rename = {f[0]: f[1] for f in column_data}
-    usecols = [f[0] for f in column_data]
-    colnames = [f[1] for f in column_data]
+    col_rename = {f[1]: f[0] for f in column_data}
+    colnames = [f[0] for f in column_data]
+    usecols = [f[1] for f in column_data]
     table = (
         pd.read_csv(file, sep=sep, usecols=usecols)
         .rename(columns=col_rename)
@@ -143,7 +144,7 @@ class PepXMLdataExtractor:
         if var_mods is not None:
             for m in var_mods:
                 mod_aa = pept_seq[m['position']-1]
-                mass = np.round(m['mass'] - std_aa_mass[mod_aa], 3)
+                mass = np.round(m['mass'] - std_aa_mass[mod_aa], 4)
                 var_mods_pos[m['position']-1] = mass
         return var_mods_pos
 
@@ -264,8 +265,6 @@ class FragPipeRun:
                 ('var_mods_pos', 'Assigned Modifications', []),
                 ('delta_mass_mods', 'Observed Modifications', []),
                 ('delta_mass_mods_pos', 'MSFragger Localization', []),
-                ('is_decoy', None, None),
-                ('', None, None)
             ]
         elif self.format == 'pepXML':
             self.fields = [
@@ -355,17 +354,53 @@ class FragPipeRun:
         frag_psm_data = pd.concat(frag_psm_data)
         return frag_psm_data
 
+    @staticmethod
+    def get_var_mods_pos(vms, pept_seq):
+        var_mods_pos = [0] * len(pept_seq)
+        vms = vms.split(',')
+        for m in vms:
+            m = m.split('(')
+            aa = m[0][-1]
+            pos = int(m[0][:-1])
+            mass = float(m[1].rstrip(')'))
+            var_mods_pos[pos-1] = mass
+        return var_mods_pos
+
+    @staticmethod
+    def get_delta_mass_mods_pos(delta_mass_mods, pept_seq, msfragger_loc, delta_mass, mods_regex):
+        mods = delta_mass_mods.split("; ")[0]
+        mods = ' + '.join(mods_regex.findall(mods))
+        mods_pos = [0] * len(msfragger_loc)
+        delta_mass_pos = [0] * len(msfragger_loc)
+        msfragger_loc = [i for i, c in enumerate(msfragger_loc) if c.islower()]
+        for p in msfragger_loc:
+            mods_pos[p] = mods
+            delta_mass_pos[p] = delta_mass
+        return delta_mass_pos, mods_pos
+
     def read_fp_tsv(self):
         frag_psm_data = []
         for i in range(len(self.files)):
-            print(f'\tProcessing experiment {self.experiments[i]} ... ', end='')
+            print(f'\tReading sample {self.experiments[i]} ... ')
             psm_data = load_psm_table(self.files[i], column_data=self.column_data, sep='\t')
-            psm_data['Run_id'] = self.run_id
             psm_data['Sample'] = self.experiments[i]
-            psm_data['start'] = psm_data['start'] - 1
-            psm_data['end'] = psm_data['end'] - 1
             frag_psm_data.append(psm_data)
+
         frag_psm_data = pd.concat(frag_psm_data)
+
+        frag_psm_data['Run_id'] = self.run_id
+        frag_psm_data['start'] = frag_psm_data['start'] - 1
+        frag_psm_data['var_mods_pos'] = (
+            frag_psm_data
+            .apply(lambda x: self.get_var_mods_pos(x['var_mods_pos'], x['Seq']), axis=1))
+
+        mods_regex = re.compile(r'Mod\d: (.+?)[,\(]')
+        frag_psm_data[['delta_mass_mods_pos', 'delta_mas_pos']] = (
+            frag_psm_data
+            .apply(lambda x: self.get_delta_mass_mods_pos(
+                x['delta_mass_mods'], x['Seq'], x['delta_mass_mods_pos'], x['delta_mass'], mods_regex),
+                result_type='expand', axis=1)
+        )
         return frag_psm_data
 
     def read(self, n_procs=1, save_path=None, remove_contams=True, remove_decoy=True):
