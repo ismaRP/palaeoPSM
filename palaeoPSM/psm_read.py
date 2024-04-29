@@ -26,6 +26,9 @@ def load_psm_table(file, column_data, sep):
     return table
 
 
+def is_decoy(proteins, decoy_tag):
+    pass
+
 def get_rt(scan_ns, mzml_spectra):
     """
     Given a list of scan numbers, it retrieves the RT from mzML pyteomics object
@@ -357,26 +360,59 @@ class FragPipeRun:
     @staticmethod
     def get_var_mods_pos(vms, pept_seq):
         var_mods_pos = [0] * len(pept_seq)
-        vms = vms.split(',')
-        for m in vms:
-            m = m.split('(')
-            aa = m[0][-1]
-            pos = int(m[0][:-1])
-            mass = float(m[1].rstrip(')'))
-            var_mods_pos[pos-1] = mass
+        if not pd.isna(vms):
+            vms = vms.split(',')
+            for m in vms:
+                m = m.split('(')
+                if m[0] == 'N-term':
+                    pos = 1
+                elif m[0] == 'C-term':
+                    pos = len(pept_seq)
+                else:
+                    aa = m[0][-1]
+                    pos = int(m[0][:-1])
+                mass = float(m[1].rstrip(')'))
+                var_mods_pos[pos-1] = mass
         return var_mods_pos
 
     @staticmethod
     def get_delta_mass_mods_pos(delta_mass_mods, pept_seq, msfragger_loc, delta_mass, mods_regex):
-        mods = delta_mass_mods.split("; ")[0]
-        mods = ' + '.join(mods_regex.findall(mods))
-        mods_pos = [0] * len(msfragger_loc)
-        delta_mass_pos = [0] * len(msfragger_loc)
-        msfragger_loc = [i for i, c in enumerate(msfragger_loc) if c.islower()]
-        for p in msfragger_loc:
-            mods_pos[p] = mods
-            delta_mass_pos[p] = delta_mass
-        return delta_mass_pos, mods_pos
+        mod1_pos = [0] * len(pept_seq)
+        mod2_pos = [0] * len(pept_seq)
+        delta_mass_pos = [0] * len(pept_seq)
+        if not pd.isna(delta_mass_mods) and not pd.isna(msfragger_loc) and delta_mass > 0.5:
+            msfragger_loc = [i for i, c in enumerate(msfragger_loc) if c.islower()]
+            mods = delta_mass_mods.split("; ")[0]
+            mods = mods_regex.findall(mods)
+            if len(mods) > 0: #  This just checks if a PTM has been actually found in the string
+                for p in msfragger_loc:
+                    mod1_pos[p] = mods[0]
+                    if len(mods) == 2:
+                        mod2_pos[p] = mods[1]
+                    delta_mass_pos[p] = delta_mass
+            else:
+                print(f'Could not extract PTM from {delta_mass_mods}')
+        return delta_mass_pos, mod1_pos, mod2_pos
+
+    @staticmethod
+    def get_delta_mass_mods(delta_mass_mods, mods_regex):
+        mods = None
+        if not pd.isna(delta_mass_mods):
+            mods = delta_mass_mods.split("; ")[0]
+            print(mods)
+            mods = ' + '.join(mods_regex.findall(mods))
+            print(mods)
+            print('-------------------------')
+        return mods
+
+    @staticmethod
+    def tsv_is_decoy(prot_id, other_prot_ids, decoy_tag):
+        if not pd.isna(other_prot_ids):
+            other_prot_ids = other_prot_ids.split(', ')
+            other_prot_ids.append(prot_id)
+            return all(p.startswith(decoy_tag) for p in other_prot_ids)
+        else:
+            return prot_id.startswith(decoy_tag)
 
     def read_fp_tsv(self):
         frag_psm_data = []
@@ -384,6 +420,14 @@ class FragPipeRun:
             print(f'\tReading sample {self.experiments[i]} ... ')
             psm_data = load_psm_table(self.files[i], column_data=self.column_data, sep='\t')
             psm_data['Sample'] = self.experiments[i]
+
+            psm_data['is_decoy'] = (
+                psm_data
+                .apply(lambda x: self.tsv_is_decoy(x['prot_id'], x['other_prot_ids'], 'rev_'), axis=1))
+            psm_data = pepxml.qvalues(
+                psm_data, key='probability', reverse=True, correction=0,
+                is_decoy='is_decoy', full_output=True)
+
             frag_psm_data.append(psm_data)
 
         frag_psm_data = pd.concat(frag_psm_data)
@@ -394,13 +438,20 @@ class FragPipeRun:
             frag_psm_data
             .apply(lambda x: self.get_var_mods_pos(x['var_mods_pos'], x['Seq']), axis=1))
 
-        mods_regex = re.compile(r'Mod\d: (.+?)[,\(]')
-        frag_psm_data[['delta_mass_mods_pos', 'delta_mas_pos']] = (
+        # mods_regex = re.compile(r'Mod\d: (.+?)[,(]')
+        mods_regex = re.compile(r'Mod\d: (.+?)(?:, |\((?:Theoretical|PeakApex))')
+        # frag_psm_data['delta_mass_mods'] = (
+        #     frag_psm_data
+        #     .apply(lambda x: self.get_delta_mass_mods(x['delta_mass_mods'], mods_regex), axis=1)
+        # )
+
+        frag_psm_data[['delta_mass_pos', 'delta_mass_mod1_pos', 'delta_mass_mod2_pos']] = (
             frag_psm_data
             .apply(lambda x: self.get_delta_mass_mods_pos(
                 x['delta_mass_mods'], x['Seq'], x['delta_mass_mods_pos'], x['delta_mass'], mods_regex),
                 result_type='expand', axis=1)
         )
+
         return frag_psm_data
 
     def read(self, n_procs=1, save_path=None, remove_contams=True, remove_decoy=True):
