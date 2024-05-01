@@ -26,8 +26,15 @@ def load_psm_table(file, column_data, sep):
     return table
 
 
-def is_decoy(proteins, decoy_tag):
-    pass
+def filter_psms(psm_data, remove_contams=None, remove_decoy=True, fdr_threshold=0.05):
+    if remove_contams:
+        psm_data = psm_data[~psm_data['prot_id'].isin(remove_contams)]
+    if remove_decoy:
+        psm_data = psm_data[~psm_data['is_decoy']]
+    if fdr_threshold is not None:
+        psm_data = psm_data[psm_data['q'] < fdr_threshold]
+    return psm_data
+
 
 def get_rt(scan_ns, mzml_spectra):
     """
@@ -325,8 +332,9 @@ class FragPipeRun:
                     scan_counts.append([sample, len(ms1spectra), len(ms2spectra)])
                     print('Done')
                 n_scans = pd.DataFrame(scan_counts, columns=['sample', 'n_ms1scans', 'n_ms2scans'])
-                print(f'Writing # of scans from {self.n_scans_path}')
-                n_scans.to_csv(os.path.join(self.n_scans_path, 'n_scans.csv'), index=False)
+                n_scans_file = os.path.join(self.n_scans_path, 'n_scans.csv')
+                print(f'Writing # of scans on {n_scans_file}')
+                n_scans.to_csv(n_scans_file, index=False)
             return n_scans
 
     def __load_psms(self):
@@ -348,7 +356,7 @@ class FragPipeRun:
                     self.fragpipe_pepxml_target, processes=n_procs)
             psm_data = pd.DataFrame(psm_data)
             psm_data['Run_id'] = self.run_id
-            psm_data['Sample'] = self.experiments[i]
+            psm_data['sample'] = self.experiments[i]
             psm_data = pepxml.qvalues(
                 psm_data, key='probability', reverse=True, correction=0,
                 is_decoy='is_decoy', full_output=True)
@@ -382,16 +390,13 @@ class FragPipeRun:
         delta_mass_pos = [0] * len(pept_seq)
         if not pd.isna(delta_mass_mods) and not pd.isna(msfragger_loc) and delta_mass > 0.5:
             msfragger_loc = [i for i, c in enumerate(msfragger_loc) if c.islower()]
-            mods = delta_mass_mods.split("; ")[0]
-            mods = mods_regex.findall(mods)
+            mods = delta_mass_mods.split(' + ')
             if len(mods) > 0: #  This just checks if a PTM has been actually found in the string
                 for p in msfragger_loc:
                     mod1_pos[p] = mods[0]
                     if len(mods) == 2:
                         mod2_pos[p] = mods[1]
                     delta_mass_pos[p] = delta_mass
-            else:
-                print(f'Could not extract PTM from {delta_mass_mods}')
         return delta_mass_pos, mod1_pos, mod2_pos
 
     @staticmethod
@@ -399,10 +404,12 @@ class FragPipeRun:
         mods = None
         if not pd.isna(delta_mass_mods):
             mods = delta_mass_mods.split("; ")[0]
-            print(mods)
-            mods = ' + '.join(mods_regex.findall(mods))
-            print(mods)
-            print('-------------------------')
+            mods = mods_regex.findall(mods)
+            if len(mods) > 0:
+                mods = ' + '.join(mods)
+            else:
+                print(f'Could not extract PTM from {delta_mass_mods}')
+                return delta_mass_mods
         return mods
 
     @staticmethod
@@ -417,21 +424,18 @@ class FragPipeRun:
     def read_fp_tsv(self):
         frag_psm_data = []
         for i in range(len(self.files)):
-            print(f'\tReading sample {self.experiments[i]} ... ')
+            print(f'\tReading sample {self.experiments[i]} ... ', end='')
             psm_data = load_psm_table(self.files[i], column_data=self.column_data, sep='\t')
-            psm_data['Sample'] = self.experiments[i]
-
+            psm_data['sample'] = self.experiments[i]
             psm_data['is_decoy'] = (
                 psm_data
                 .apply(lambda x: self.tsv_is_decoy(x['prot_id'], x['other_prot_ids'], 'rev_'), axis=1))
             psm_data = pepxml.qvalues(
                 psm_data, key='probability', reverse=True, correction=0,
                 is_decoy='is_decoy', full_output=True)
-
             frag_psm_data.append(psm_data)
-
+            print('Done')
         frag_psm_data = pd.concat(frag_psm_data)
-
         frag_psm_data['Run_id'] = self.run_id
         frag_psm_data['start'] = frag_psm_data['start'] - 1
         frag_psm_data['var_mods_pos'] = (
@@ -439,11 +443,11 @@ class FragPipeRun:
             .apply(lambda x: self.get_var_mods_pos(x['var_mods_pos'], x['Seq']), axis=1))
 
         # mods_regex = re.compile(r'Mod\d: (.+?)[,(]')
-        mods_regex = re.compile(r'Mod\d: (.+?)(?:, |\((?:Theoretical|PeakApex))')
-        # frag_psm_data['delta_mass_mods'] = (
-        #     frag_psm_data
-        #     .apply(lambda x: self.get_delta_mass_mods(x['delta_mass_mods'], mods_regex), axis=1)
-        # )
+        mods_regex = re.compile(r'Mod\d: (.+?)(?:, | \((?:Theoretical|PeakApex))')
+        frag_psm_data['delta_mass_mods'] = (
+            frag_psm_data
+            .apply(lambda x: self.get_delta_mass_mods(x['delta_mass_mods'], mods_regex), axis=1)
+        )
 
         frag_psm_data[['delta_mass_pos', 'delta_mass_mod1_pos', 'delta_mass_mod2_pos']] = (
             frag_psm_data
@@ -454,7 +458,7 @@ class FragPipeRun:
 
         return frag_psm_data
 
-    def read(self, n_procs=1, save_path=None, remove_contams=True, remove_decoy=True):
+    def read(self, n_procs=1, save_path=None, **kwargs):
         if save_path is None or not os.path.exists(save_path):
             print(f'Collecting PSMs from {self.format} files')
             if self.format == 'pepXML':
@@ -468,10 +472,7 @@ class FragPipeRun:
             print(f'Loading PSMs from {save_path}')
             frag_psm_data = pd.read_csv(save_path)
 
-        if remove_contams:
-            frag_psm_data = frag_psm_data[~frag_psm_data['prot_id'].isin(self.contams)]
-        if remove_decoy:
-            frag_psm_data = frag_psm_data[~frag_psm_data['is_decoy']]
+        frag_psm_data = filter_psms(frag_psm_data, **kwargs)
 
         return frag_psm_data
 
