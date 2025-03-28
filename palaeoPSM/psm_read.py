@@ -26,9 +26,11 @@ def load_psm_table(file, column_data, sep):
     return table
 
 
-def filter_psms(psm_data, remove_contams=None, remove_decoy=True, fdr_threshold=0.05):
+def filter_psms(psm_data, remove_contams=None, whitelist=None, remove_decoy=True, fdr_threshold=0.05):
     if remove_contams:
         psm_data = psm_data[~psm_data['prot_id'].isin(remove_contams)]
+    if whitelist:
+        psm_data = psm_data[psm_data['prot_id'].isin(whitelist)]
     if remove_decoy:
         psm_data = psm_data[~psm_data['is_decoy']]
     if fdr_threshold is not None:
@@ -222,7 +224,9 @@ class PepXMLdataExtractor:
 
 class FragPipeRun:
 
-    def __init__(self, path, db, run_id, contams, format='tsv', decoy_tag='rev_', n_scans_path=None):
+    def __init__(
+            self, path, db, run_id, contams, format='tsv', decoy_tag='rev_', n_scans_path=None,
+            prob_column='PeptideProphet Probability'):
         """
         :param path: Path to results
         :param db: List of SeqRecords
@@ -230,6 +234,9 @@ class FragPipeRun:
         :param format: Format of the FragPipe output to read. Either "tsv" or "pepXML".
                "tsv" will read the psm.tsv file from each experiment, while "pepXML" will read the interact.pep.xml.
         :param decoy_tag: Decoy tag
+        :param n_scans_path: Path to csv files with MS1 and MS2 scans per LC-MSMS run
+        :param prob_column: Some Fragpipe versions us "Proability", others "PeptideProphet Probability".
+               adjust accordingly.
         """
         self.path = path
         self.db = db
@@ -267,7 +274,7 @@ class FragPipeRun:
                 ('calc_mass', 'Calculated Peptide Mass', np.nan),
                 ('delta_mass', 'Delta Mass', np.nan),
                 ('hyperscore', 'Hyperscore', np.nan),
-                ('probability', 'PeptideProphet Probability', np.nan),
+                ('probability', prob_column, np.nan),
                 ('start', 'Protein Start', -1),
                 ('intensity', 'Intensity', np.nan),
                 ('prot_id', 'Protein', ''),
@@ -300,42 +307,45 @@ class FragPipeRun:
         self.__load_psms()
 
     def count_n_scans(self):
-        if os.path.exists(self.n_scans_path):
-            if os.path.isfile(self.n_scans_path):
-                print(f'Reading # of scans from {self.n_scans_path}')
-                ext = os.path.splitext(self.n_scans_path)[1]
-                if ext == '.csv':
-                    sep = ','
-                elif ext == '.tsv':
-                    sep = '\t'
-                else:
-                    sys.exit(f'{self.n_scans_path} is not recognsied as a csv or tsv file')
-                n_scans = pd.read_csv(self.n_scans_path, sep=sep)
-            else:  # os.path.isdir(self.n_scans_path)
-                print(f'Reading mzML files from {self.n_scans_path} and counting # of scans')
-                mzml_files = [f for f in os.listdir(self.n_scans_path) if f.endswith('.mzML')]
-                scan_counts = []
-                for f in mzml_files:
-                    sample = f.rstrip('.mzML')
-                    print(f'\tReading sample {sample} ... ', end='')
-                    path = os.path.join(self.n_scans_path, f)
-                    tree = etree.parse(path)
-                    root = tree.getroot()
-                    ms1spectra = root.xpath(
-                        "mzml:mzML/mzml:run/mzml:spectrumList/mzml:spectrum"
-                        "[mzml:cvParam/@name='ms level' and mzml:cvParam/@value='1']",
-                        namespaces={'mzml': 'http://psi.hupo.org/ms/mzml'})
-                    ms2spectra = root.xpath(
-                        "mzml:mzML/mzml:run/mzml:spectrumList/mzml:spectrum"
-                        "[mzml:cvParam/@name='ms level' and mzml:cvParam/@value='2']",
-                        namespaces={'mzml': 'http://psi.hupo.org/ms/mzml'})
-                    scan_counts.append([sample, len(ms1spectra), len(ms2spectra)])
-                    print('Done')
-                n_scans = pd.DataFrame(scan_counts, columns=['sample', 'n_ms1scans', 'n_ms2scans'])
-                n_scans_file = os.path.join(self.n_scans_path, 'n_scans.csv')
-                print(f'Writing # of scans on {n_scans_file}')
-                n_scans.to_csv(n_scans_file, index=False)
-            return n_scans
+        if os.path.isfile(self.n_scans_path):
+            print(f'Reading # of scans from {self.n_scans_path}')
+            ext = os.path.splitext(self.n_scans_path)[1]
+            if ext == '.csv':
+                sep = ','
+            elif ext == '.tsv':
+                sep = '\t'
+            else:
+                sys.exit(f'{self.n_scans_path} is not recognised as a csv or tsv file')
+            n_scans = pd.read_csv(self.n_scans_path, sep=sep)
+        elif os.path.isdir(self.n_scans_path):
+            print(f'Reading mzML files from {self.n_scans_path} and counting # of scans')
+            mzml_files = [f for f in os.listdir(self.n_scans_path) if f.endswith('.mzML')]
+            scan_counts = []
+            for f in mzml_files:
+                sample = f.rstrip('.mzML')
+                print(f'\tReading sample {sample} ... ', end='')
+                path = os.path.join(self.n_scans_path, f)
+                tree = etree.parse(path)
+                root = tree.getroot()
+                ms1spectra = root.xpath(
+                    "mzml:mzML/mzml:run/mzml:spectrumList/mzml:spectrum"
+                    "[mzml:cvParam/@name='ms level' and mzml:cvParam/@value='1']",
+                    namespaces={'mzml': 'http://psi.hupo.org/ms/mzml'})
+                ms2spectra = root.xpath(
+                    "mzml:mzML/mzml:run/mzml:spectrumList/mzml:spectrum"
+                    "[mzml:cvParam/@name='ms level' and mzml:cvParam/@value='2']",
+                    namespaces={'mzml': 'http://psi.hupo.org/ms/mzml'})
+                scan_counts.append([sample, len(ms1spectra), len(ms2spectra)])
+                print('Done')
+            n_scans = pd.DataFrame(scan_counts, columns=['sample', 'n_ms1scans', 'n_ms2scans'])
+            n_scans_file = os.path.join(self.n_scans_path, 'n_scans.csv')
+            print(f'Writing # of scans on {n_scans_file}')
+            n_scans.to_csv(n_scans_file, index=False)
+        else:
+            warnings.warn(f'{self.n_scans_path} is not recognised as a csv or tsv file, or a directory to mzML files.\n'
+                          f'n_scans set to None.')
+            n_scans = None
+        return n_scans
 
     def __load_psms(self):
         for f in self.files:
@@ -448,7 +458,8 @@ class FragPipeRun:
             frag_psm_data
             .apply(lambda x: self.get_delta_mass_mods(x['delta_mass_mods'], mods_regex), axis=1)
         )
-
+        frag_psm_data['other_prot_ids'] = frag_psm_data['other_prot_ids'].fillna('')
+        frag_psm_data['other_prot_ids'] = frag_psm_data['other_prot_ids'].str.split(', ')
         frag_psm_data[['delta_mass_pos', 'delta_mass_mod1_pos', 'delta_mass_mod2_pos']] = (
             frag_psm_data
             .apply(lambda x: self.get_delta_mass_mods_pos(
