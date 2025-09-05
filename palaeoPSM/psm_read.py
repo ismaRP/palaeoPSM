@@ -225,11 +225,11 @@ class PepXMLdataExtractor:
 class FragPipeRun:
 
     def __init__(
-            self, path, db, run_id, contams, format='tsv', decoy_tag='rev_', n_scans_path=None,
+            self, path, run_id, db=None, contams=None, format='tsv', decoy_tag='rev_', n_scans_path=None,
             prob_column='PeptideProphet Probability'):
         """
         :param path: Path to results
-        :param db: List of SeqRecords
+        :param db: Dict of SeqRecords
         :param run_id: Identification of the run
         :param format: Format of the FragPipe output to read. Either "tsv" or "pepXML".
                "tsv" will read the psm.tsv file from each experiment, while "pepXML" will read the interact.pep.xml.
